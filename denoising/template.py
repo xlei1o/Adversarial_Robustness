@@ -24,7 +24,8 @@ def set_template(args):
             args.eps_rel = 0.1
             args.adv_iterations = 1
 
-            args.train_size = 200
-            args.test_size = 20
+            args.train_size = 100
+            args.test_size = 10
 
-            train_model = True
+            args.train_model = True
+            args.test_only = False

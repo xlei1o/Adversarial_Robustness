@@ -45,11 +45,11 @@ class Data:
         print(f"Images have shape: {x.shape} with dimension: n={self.n}")
 
         self.dataset_train = NoiseReconstructionDataset(dataset=dataset_train_base,
-                                                   transform=AddGaussianNoise(mean=0, std=self.noise_level_train),
-                                                   device=self.device)
+                                                        transform=AddGaussianNoise(mean=0, std=self.noise_level_train),
+                                                        device=self.device)
         self.dataset_test = NoiseReconstructionDataset(dataset=dataset_test_base,
-                                                  transform=AddGaussianNoise(mean=0, std=self.noise_level_test),
-                                                  device=self.device)
+                                                       transform=AddGaussianNoise(mean=0, std=self.noise_level_test),
+                                                       device=self.device)
 
         # for efficiency we preload the dataset (takes some time to process); deactivate if gpu memory is not large
         # enough
@@ -67,5 +67,5 @@ class Data:
                                                                num_workers=self.dataloader_num_workers)
 
         y, x = self.dataset_test_preload[7]
-        self.y_plt = normalize_inverse(y.cpu()).permute(1,2,0).clamp(0,1)
-        self.x_plt = normalize_inverse(x.cpu()).permute(1,2,0).clamp(0,1)
+        self.y_plt = normalize_inverse(y.cpu()).permute(1, 2, 0).clamp(0, 1)
+        self.x_plt = normalize_inverse(x.cpu()).permute(1, 2, 0).clamp(0, 1)

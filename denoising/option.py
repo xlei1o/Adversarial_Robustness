@@ -34,34 +34,15 @@ parser.add_argument('--train_size', type=int, default=200000)
 parser.add_argument('--test_size', type=int, default=2000)
 
 # Model
-parser.add_argument('--save_model', action='store_true',
-                    help='save current model')
 parser.add_argument('--train_model', action='store_true',
-                    help='if true, training, if false, testing')
+                    help='if true, training, if false, loading')
+
+parser.add_argument('--model_path', type=str, default='./model')
 
 parser.add_argument('--model', type=str, default='UNET',
                     help='model name')
-parser.add_argument('--pre_train', type=str, default='.',
-                    help='pre-trained model directory')
+parser.add_argument('--test_only', action='store_true')
 
-
-# Log specifications
-parser.add_argument('--save', type=str, default='DEBLUR',
-                    help='file name to save')
-
-parser.add_argument('--save_models', action='store_true',
-                    help='save all intermediate models')
-
-parser.add_argument('--load', type=str, default='.',
-                    help='file name to load')
-parser.add_argument('--resume', action='store_true',
-                    help='resume from the latest if true')
-parser.add_argument('--print_every', type=int, default=200,
-                    help='how many batches to wait before logging training status')
-parser.add_argument('--save_images', default=True, action='store_true',
-                    help='save images')
-parser.add_argument('--reset', action='store_true',
-                    help='reset the training')
 
 # adversarial attacks / training
 parser.add_argument("--eps_rel", default=0.1,

@@ -1,13 +1,10 @@
 from option import args
 import matplotlib.pyplot as plt
-import math
+
+import numpy as np
 import data
-import logger
 import model
 from trainer import Trainer
-import attack
-
-chkp = logger.Logger(args)
 
 print("Adversarial Attacks for Image Denoising")
 
@@ -18,18 +15,22 @@ ax[0].imshow(loader.y_plt); ax[0].set_title(f"Noisy image (level: {args.noise_le
 ax[1].imshow(loader.x_plt); ax[1].set_title("Original image")
 fig.tight_layout()
 
-# needs to be adapted for different settings (e.g. for classification one usually needs restarts and more iterations)
-eps = args.eps_rel* math.sqrt(loader.n)
-attack_kwargs = {
-    'constraint': "2",
-    'eps': eps,
-    'step_size': 2.5 * (eps / args.adv_iterations),
-    'iterations': args.adv_iterations,
-    'random_start': True,
-    'random_restarts': 0,
-    'use_best': False,
-    'random_mode': "uniform_in_sphere"
-}
-
-model = model.Model(args, chkp)
-t = Trainer(args, loader, model, **attack_kwargs)
+model = model.Model(args)
+t = Trainer(args, loader, model)
+if not args.test_only:
+    fig, ax = plt.subplots(ncols=2, figsize=(8,4))
+    ax[0].set_xlabel("epochs")
+    ax[0].set_ylabel("adversarial error")
+    ax[0].scatter(np.arange(0,args.epochs), np.array(t.test_loss_std_adv))
+    ax[0].scatter(np.arange(0,args.epochs), np.array(t.test_loss_adv_adv))
+    ax[0].plot(np.arange(0,args.epochs), np.array(t.test_loss_std_adv))
+    ax[0].plot(np.arange(0,args.epochs), np.array(t.test_loss_adv_adv))
+    ax[1].set_xlabel("epochs")
+    ax[1].set_ylabel("standard error")
+    ax[1].scatter(np.arange(0,args.epochs), np.array(t.test_loss_std_std))
+    ax[1].scatter(np.arange(0,args.epochs), np.array(t.test_loss_adv_std))
+    ax[1].plot(np.arange(0,args.epochs), np.array(t.test_loss_std_std), label="Standard Training")
+    ax[1].plot(np.arange(0,args.epochs), np.array(t.test_loss_adv_std), label="Adversarial Training")
+    fig.legend()
+    fig.tight_layout()
+    plt.show()

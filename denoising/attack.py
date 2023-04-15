@@ -168,8 +168,8 @@ class AttackerModel(torch.nn.Module):
             else:
                 adv_ret, _ = get_adv_examples(x_init, loss_init)
 
-            ###### (adv. training end)
-            if (prev_training):
+            # (adv. training end)
+            if prev_training:
                 self.train()
             inp = adv_ret
         else:

@@ -1,8 +1,3 @@
-# adversarial attacks
-"""
-    This module is adapted from the following package:
-    https://robustness.readthedocs.io/en/latest/
-"""
 import torch
 
 
@@ -39,8 +34,8 @@ class L2Step(AttackerStep):
 
     def project(self, x):
         """
-        x refers to delta+y
-        diff delta buz orig_inp is y.
+        diff: delta
+        x: y+delta
         """
         diff = x - self.orig_input
         diff = diff.renorm(p=2, dim=0, maxnorm=self.eps)
@@ -97,7 +92,7 @@ class AttackerModel(torch.nn.Module):
         super(AttackerModel, self).__init__()
         self.model = model
 
-    def forward(self, x, target=None, make_adv=False, constraint="2", eps=0.1, step_size=0.1, iterations=10,
+    def forward(self, x, kernel, target=None, make_adv=False, constraint="2", eps=0.1, step_size=0.1, iterations=10,
                 random_start=False, random_restarts=5, random_mode="uniform_in_sphere", use_best=False,
                 restart_use_best=True):
 
@@ -108,12 +103,13 @@ class AttackerModel(torch.nn.Module):
             ###### (adv. training begin)
             orig_input = x.clone()
             criterion = torch.nn.MSELoss(reduction='none')
-
+            targeted = target is not None
+            target = self.model(orig_input, kernel)
             step_class = STEPS[constraint] if isinstance(constraint, str) else constraint
             step = step_class(eps=eps, orig_input=orig_input, step_size=step_size)
 
-            def calc_loss(inp, target):
-                output = self.model(inp)
+            def calc_loss(inp, kernel, target):
+                output = self.model(inp, kernel)
                 return criterion(output, target), output
 
             # Main function for making adversarial examples
@@ -164,17 +160,17 @@ class AttackerModel(torch.nn.Module):
                     old_loss = best_loss.clone()
                     new_x, new_loss = get_adv_examples(x_init, loss_init)
                     best_x, best_loss = step.get_best(best_x, best_loss, new_x, new_loss) if restart_use_best else (
-                        new_x, new_loss)
+                    new_x, new_loss)
 
                 adv_ret = best_x
             else:
                 adv_ret, _ = get_adv_examples(x_init, loss_init)
 
-            # (adv. training end)
-            if prev_training:
+            ###### (adv. training end)
+            if (prev_training):
                 self.train()
             inp = adv_ret
         else:
             inp = x
 
-        return inp, self.model(inp)
+        return inp, self.model(inp, kernel)

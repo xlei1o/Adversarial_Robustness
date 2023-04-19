@@ -9,6 +9,8 @@ import utils_deblur
 import torch.nn.functional as F
 import torch.nn as nn
 
+from attacker import AttackerModel
+
 att_kwargs = {'constraint': 'inf',
               'eps': 0.5,
               'step_size': 0.1,
@@ -131,8 +133,9 @@ class Trainer_VD:
                 # print(blur.size())
                 # a = sigma+blur
                 # print(a.size())
-                deblur = self.projected_gradient_descent(blur=blur, kernel=kernel, sigma=sigma, target=None, make_adv=True, **att_kwargs)
-
+                # deblur = self.projected_gradient_descent(blur=blur, kernel=kernel, sigma=sigma, target=None, make_adv=True, **att_kwargs)
+                # self.model = AttackerModel(self.model)
+                deblur = self.model(blur, kernel)
                 if self.args.save_images:
                     deblur = utils_deblur.postprocess(deblur[-1], rgb_range=self.args.rgb_range)
                     save_list = [deblur[0]]

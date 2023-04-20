@@ -16,7 +16,7 @@ class DEBLUR(nn.Module):
         n_feats = 32
         kernel_size = 5
         self.n_colors = args.n_colors
-
+        self.args = args
         FeatureBlock = [Conv(self.n_colors, n_feats1, kernel_size, padding=2, act=True),
                         ResBlock(Conv, n_feats1, kernel_size, padding=2),
                         ResBlock(Conv, n_feats1, kernel_size, padding=2),
@@ -102,6 +102,7 @@ class DEBLUR(nn.Module):
             out = self.outBlock2(input_pre)
             output.append(out)
 
+        # output = utils_deblur.postprocess(output[-1], rgb_range=self.args.rgb_range)
         return output
 
 

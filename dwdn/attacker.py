@@ -1,5 +1,5 @@
 import torch
-
+import torch.nn.functional as F
 
 class AttackerStep:
     def __init__(self, orig_input, eps, step_size, use_grad=True):
@@ -104,13 +104,37 @@ class AttackerModel(torch.nn.Module):
             orig_input = x.clone()
             criterion = torch.nn.MSELoss(reduction='none')
             targeted = target is not None
-            target = self.model(orig_input, kernel)
+            target = self.model(orig_input, kernel) if not targeted else target
+
+            # print(target[0].size())
+            # print(target[1].size())
             step_class = STEPS[constraint] if isinstance(constraint, str) else constraint
             step = step_class(eps=eps, orig_input=orig_input, step_size=step_size)
 
-            def calc_loss(inp, kernel, target):
-                output = self.model(inp, kernel)
-                return criterion(output, target), output
+            def calc_loss(orig_input, x, kernel, target):
+                adv_deblur = self.model(x, kernel)
+                # print(adv_deblur[0].size())
+                # print(adv_deblur[1].size())
+                self.n_levels = 2
+                self.scale = 0.5
+
+                if not targeted:
+                    loss = 0
+                    for level in range(self.n_levels):
+                        loss = loss + criterion(adv_deblur[level], target[level])
+                        # print(adv_deblur[level].size())
+                        # print(target[level].size())
+                        # print('-----')
+                else:
+                    loss = 0
+                    for level in range(self.n_levels):
+                        scale = self.scale ** (self.n_levels - level - 1)
+                        n, c, h, w = target.shape
+                        hi = int(round(h * scale))
+                        wi = int(round(w * scale))
+                        target_level = F.interpolate(target, (hi, wi), mode='bilinear')
+                        loss = loss + criterion(adv_deblur[level], target_level)
+                return loss
 
             # Main function for making adversarial examples
             def get_adv_examples(x, losses):
@@ -121,18 +145,18 @@ class AttackerModel(torch.nn.Module):
                 # Random start (to escape certain types of gradient masking)
                 if random_start:
                     x = step.random_perturb(x, random_mode)
-                    losses, _ = calc_loss(x, target)
+                    losses= calc_loss(orig_input, x, kernel, target)
                     best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
 
                 # PGD iterates
                 for i in range(iterations):
                     x = x.clone().detach().requires_grad_(True)
-                    losses, _ = calc_loss(x, target)
+                    losses= calc_loss(orig_input, x, kernel, target)
                     assert losses.shape[0] == x.shape[0], \
                         'Shape of losses must match input!'
 
                     loss = torch.mean(losses)
-
+                    print(loss.grad_fn)
                     grad, = torch.autograd.grad(loss, [x])
 
                     with torch.no_grad():
@@ -142,7 +166,7 @@ class AttackerModel(torch.nn.Module):
                         x = step.step(x, grad)
                         x = step.project(x)
 
-                losses, _ = calc_loss(x, target)
+                losses = calc_loss(orig_input, x, kernel, target)
                 best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
                 if torch.any(losses != best_loss):
                     print(f"Loss improved from {losses.sum()} to {best_loss.sum()}")
@@ -150,7 +174,7 @@ class AttackerModel(torch.nn.Module):
                 return best_x.clone().detach(), best_loss.clone().detach()
 
             x_init = x.clone().detach()
-            loss_init, _ = calc_loss(x_init, target)
+            loss_init = calc_loss(orig_input, x, kernel, target)
 
             if random_restarts:
                 best_x = x_init

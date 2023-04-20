@@ -48,6 +48,7 @@ class Logger:
     def save_images(self, filename, save_list):
 
         if self.args.task == 'Deblurring':
+            print('Saving image...')
             idx = 0
             f = filename[idx][0].split('.')
             if self.args.adv_test:

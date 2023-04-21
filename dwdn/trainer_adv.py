@@ -4,19 +4,13 @@ import torch
 import torch.optim as optim
 import torch.optim.lr_scheduler as lrs
 from tqdm import tqdm
+import math
 
 import utils_deblur
 import torch.nn.functional as F
 import torch.nn as nn
 
 from attacker import AttackerModel
-
-att_kwargs = {'constraint': 'inf',
-              'eps': 0.5,
-              'step_size': 0.1,
-              'iterations': 1,
-              # 'do_tqdm': True
-              }
 
 
 class Trainer_adv:
@@ -63,6 +57,20 @@ class Trainer_adv:
         kwargs = {'step_size': self.args.lr_decay, 'gamma': self.args.gamma}
         return lrs.StepLR(self.optimizer, **kwargs)
 
+    def set_adv(self):
+        eps = self.args.eps * math.sqrt(self.args.n_colors)
+        attack_kwargs = {
+            'constraint': self.args.constraint,
+            'eps': eps,
+            'step_size': 2.5 * (eps / self.args.adv_iterations),
+            'iterations': self.args.adv_iterations,
+            'random_start': True,
+            'random_restarts': 0,
+            'use_best': False,
+            'random_mode': "uniform_in_sphere"
+        }
+        return attack_kwargs
+
     def train(self):
         print("Image Deblur Training")
         # self.scheduler.step()
@@ -73,7 +81,7 @@ class Trainer_adv:
         self.loss.start_log()
         self.model.train()
         self.ckp.start_log()
-
+        attack_kwargs = self.set_adv()
         for batch, (blur, sharp, kernel, filename) in enumerate(self.loader_train):
 
             blur = torch.squeeze(blur, 1)
@@ -85,7 +93,7 @@ class Trainer_adv:
 
             self.optimizer.zero_grad()
 
-            deblur = self.model(blur, kernel)
+            _, deblur = self.model(blur, kernel, target=None, make_adv=True, **attack_kwargs)
             self.n_levels = 2
             self.scale = 0.5
             loss = 0
@@ -115,24 +123,47 @@ class Trainer_adv:
         epoch = self.scheduler.last_epoch
         self.model.eval()
         self.ckp.start_log(train=False)
-
-        with torch.no_grad():
+        attack_kwargs = self.set_adv()
+        # with torch.no_grad():
+        if self.args.targeted:
             tqdm_test = tqdm(self.loader_test, ncols=80)
-            for idx_img, (blur, sharp, kernel, filename) in enumerate(tqdm_test):
+            for idx_img, (blur, sharp, kernel, target, filename) in enumerate(tqdm_test):
 
                 blur = torch.squeeze(blur, 0)
-                # targeted = torch.squeeze(targeted, 0)
+                targeted = torch.squeeze(targeted, 0)
                 kernel = torch.squeeze(kernel, 0)
                 blur = blur.to(self.device)
-                # targeted = targeted.to(self.device)
+                targeted = targeted.to(self.device)
 
-                deblur = self.model(blur, kernel, target=None, make_adv=True)
+                deblur, deblur_adv = self.model(blur, kernel, target=None, make_adv=True, **attack_kwargs)
+
                 if self.args.save_images:
+                    deblur_adv = utils_deblur.postprocess(deblur_adv[-1], rgb_range=self.args.rgb_range)
                     deblur = utils_deblur.postprocess(deblur[-1], rgb_range=self.args.rgb_range)
+                    save_list_adv = [deblur_adv[0]]
                     save_list = [deblur[0]]
+                    self.ckp.save_images(filename, save_list_adv, make_adv=True)
+                    self.ckp.save_images(filename, save_list)
+        else:
+            tqdm_test = tqdm(self.loader_test, desc=f"Test Progress", position=0, ncols=80)
+            for idx_img, (blur, sharp, kernel, filename) in enumerate(tqdm_test):
+                blur = torch.squeeze(blur, 0)
+                kernel = torch.squeeze(kernel, 0)
+                blur = blur.to(self.device)
+
+                deblur, deblur_adv = self.model(blur, kernel, target=None, make_adv=True, **attack_kwargs)
+
+                if self.args.save_images:
+                    deblur_adv = utils_deblur.postprocess(deblur_adv[-1], rgb_range=self.args.rgb_range)
+                    deblur = utils_deblur.postprocess(deblur[-1], rgb_range=self.args.rgb_range)
+                    save_list_adv = [deblur_adv[0]]
+                    save_list = [deblur[0]]
+                    self.ckp.save_images(filename, save_list_adv, make_adv=True)
                     self.ckp.save_images(filename, save_list)
 
-            self.ckp.end_log(len(self.loader_test), train=False)
+        print('Save Path for Standard Test: {}'.format('./results/Standard'))
+        print('Save Path for Adversarial Test: {}'.format('./results/Adversarial'))
+        self.ckp.end_log(len(self.loader_test), train=False)
 
 
     def terminate(self):

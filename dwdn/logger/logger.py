@@ -45,19 +45,19 @@ class Logger:
         trainer.loss.plot_loss(self.dir, epoch)
         self.plot_psnr_log(epoch)
 
-    def save_images(self, filename, save_list):
+    def save_images(self, filename, save_list, make_adv=False):
 
         if self.args.task == 'Deblurring':
-            print('Saving image...')
             idx = 0
             f = filename[idx][0].split('.')
-            if self.args.adv_test:
-                filename = './adv_results/{}'.format(f[0])
+            if make_adv:
+                filename = './results/Adversarial/{}'.format(f[0])
+
             else:
-                filename = './results/{}'.format(f[0])
+                filename = './results/Standard/{}'.format(f[0])
+
             if not os.path.exists(os.path.dirname(filename)):
                 os.makedirs(os.path.dirname(filename))
-                print('Save Path : {}'.format('./results'))
             if self.args.model == 'deblur':
                 postfix = ['DEBLUR']
 

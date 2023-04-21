@@ -6,6 +6,9 @@ from option import args
 from trainer_adv import Trainer_adv
 from logger import logger
 from attacker import AttackerModel
+import warnings
+warnings.filterwarnings('ignore')
+
 
 torch.manual_seed(args.seed)
 chkp = logger.Logger(args)

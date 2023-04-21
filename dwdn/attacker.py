@@ -1,5 +1,8 @@
 import torch
 import torch.nn.functional as F
+import utils_deblur
+from tqdm import trange
+
 
 class AttackerStep:
     def __init__(self, orig_input, eps, step_size, use_grad=True):
@@ -92,9 +95,9 @@ class AttackerModel(torch.nn.Module):
         super(AttackerModel, self).__init__()
         self.model = model
 
-    def forward(self, x, kernel, target=None, make_adv=False, constraint="2", eps=0.1, step_size=0.1, iterations=10,
-                random_start=False, random_restarts=5, random_mode="uniform_in_sphere", use_best=False,
-                restart_use_best=True):
+    def forward(self, x, kernel, target=None, make_adv=False, constraint="inf", eps=0.3, step_size=0.1, iterations=2,
+                random_start=True, random_restarts=0, random_mode="uniform_in_sphere", use_best=False,
+                restart_use_best=True, do_tqdm=True):
 
         if make_adv:
             prev_training = bool(self.training)
@@ -103,38 +106,24 @@ class AttackerModel(torch.nn.Module):
             ###### (adv. training begin)
             orig_input = x.clone()
             criterion = torch.nn.MSELoss(reduction='none')
+
             targeted = target is not None
-            target = self.model(orig_input, kernel) if not targeted else target
+            if not targeted:
+                target = self.model(orig_input, kernel)
+                target = utils_deblur.postprocess(target[-1], rgb_range=1)[0]
 
             # print(target[0].size())
             # print(target[1].size())
             step_class = STEPS[constraint] if isinstance(constraint, str) else constraint
             step = step_class(eps=eps, orig_input=orig_input, step_size=step_size)
 
-            def calc_loss(orig_input, x, kernel, target):
-                adv_deblur = self.model(x, kernel)
-                # print(adv_deblur[0].size())
-                # print(adv_deblur[1].size())
-                self.n_levels = 2
-                self.scale = 0.5
-
-                if not targeted:
-                    loss = 0
-                    for level in range(self.n_levels):
-                        loss = loss + criterion(adv_deblur[level], target[level])
-                        # print(adv_deblur[level].size())
-                        # print(target[level].size())
-                        # print('-----')
+            def calc_loss(input):
+                adv_deblur = self.model(input, kernel)
+                adv_deblur = utils_deblur.postprocess(adv_deblur[-1], rgb_range=1)[0]
+                if targeted:
+                    return criterion(adv_deblur, target)
                 else:
-                    loss = 0
-                    for level in range(self.n_levels):
-                        scale = self.scale ** (self.n_levels - level - 1)
-                        n, c, h, w = target.shape
-                        hi = int(round(h * scale))
-                        wi = int(round(w * scale))
-                        target_level = F.interpolate(target, (hi, wi), mode='bilinear')
-                        loss = loss + criterion(adv_deblur[level], target_level)
-                return loss
+                    return -criterion(adv_deblur, target)
 
             # Main function for making adversarial examples
             def get_adv_examples(x, losses):
@@ -145,36 +134,36 @@ class AttackerModel(torch.nn.Module):
                 # Random start (to escape certain types of gradient masking)
                 if random_start:
                     x = step.random_perturb(x, random_mode)
-                    losses= calc_loss(orig_input, x, kernel, target)
+                    losses = calc_loss(x)
                     best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
 
                 # PGD iterates
-                for i in range(iterations):
+                for _ in trange(iterations, desc=f"Adversarial Iteration for Current Image", position=1, ncols=120, leave=False):
                     x = x.clone().detach().requires_grad_(True)
-                    losses= calc_loss(orig_input, x, kernel, target)
+
+                    losses = calc_loss(x)
                     assert losses.shape[0] == x.shape[0], \
                         'Shape of losses must match input!'
 
                     loss = torch.mean(losses)
-                    print(loss.grad_fn)
                     grad, = torch.autograd.grad(loss, [x])
+                with torch.no_grad():
+                    # best_buffer.update_best(losses.clone().detach(), x.clone().detach())
+                    best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
 
-                    with torch.no_grad():
-                        # best_buffer.update_best(losses.clone().detach(), x.clone().detach())
-                        best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
+                    x = step.step(x, grad)
+                    x = step.project(x)
 
-                        x = step.step(x, grad)
-                        x = step.project(x)
 
-                losses = calc_loss(orig_input, x, kernel, target)
+                losses = calc_loss(x)
                 best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
-                if torch.any(losses != best_loss):
-                    print(f"Loss improved from {losses.sum()} to {best_loss.sum()}")
+                # if torch.any(losses != best_loss):
+                #     print(f"Loss improved from {losses.sum()} to {best_loss.sum()}")
 
                 return best_x.clone().detach(), best_loss.clone().detach()
 
             x_init = x.clone().detach()
-            loss_init = calc_loss(orig_input, x, kernel, target)
+            loss_init = calc_loss(x)
 
             if random_restarts:
                 best_x = x_init
@@ -184,7 +173,7 @@ class AttackerModel(torch.nn.Module):
                     old_loss = best_loss.clone()
                     new_x, new_loss = get_adv_examples(x_init, loss_init)
                     best_x, best_loss = step.get_best(best_x, best_loss, new_x, new_loss) if restart_use_best else (
-                    new_x, new_loss)
+                        new_x, new_loss)
 
                 adv_ret = best_x
             else:
@@ -197,4 +186,4 @@ class AttackerModel(torch.nn.Module):
         else:
             inp = x
 
-        return inp, self.model(inp, kernel)
+        return self.model(orig_input, kernel), self.model(inp, kernel)

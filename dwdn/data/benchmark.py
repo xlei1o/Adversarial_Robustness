@@ -20,11 +20,12 @@ class Benchmark(vsrdata.VSRData):
                 self.dir_image_blur = os.path.join(self.apath, "blurredImage")
                 self.dir_image_gt = os.path.join(self.apath, "GTImage")
                 self.dir_image_kernel = os.path.join(self.apath, "kernelImage")
+                self.dir_image_target = os.path.join(self.apath, "targetedImage") if self.args.targeted else os.path.join(self.apath, "blurredImage")
                 print("validation image path :", self.dir_image_blur)
 
             else:
                 self.dir_image_blur = os.path.join(self.apath, "blurredImage")
                 self.dir_image_gt = os.path.join(self.apath, "blurredImage")
                 self.dir_image_kernel = os.path.join(self.apath, "kernelImage")
-                self.dir_image_targeted = os.path.join(self.apath, "targetedImage")
+                self.dir_image_target = os.path.join(self.apath, "targetedImage") if self.args.targeted else os.path.join(self.apath, "blurredImage")
                 print("Test image path :", self.dir_image_blur)

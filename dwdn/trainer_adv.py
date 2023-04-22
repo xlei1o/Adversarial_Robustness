@@ -130,12 +130,12 @@ class Trainer_adv:
             for idx_img, (blur, sharp, kernel, target, filename) in enumerate(tqdm_test):
 
                 blur = torch.squeeze(blur, 0)
-                targeted = torch.squeeze(targeted, 0)
+                target = torch.squeeze(target, 0)
                 kernel = torch.squeeze(kernel, 0)
                 blur = blur.to(self.device)
-                targeted = targeted.to(self.device)
+                target = target.to(self.device)
 
-                deblur, deblur_adv = self.model(blur, kernel, target=None, make_adv=True, **attack_kwargs)
+                deblur, deblur_adv = self.model(blur, kernel, target=target, make_adv=True, **attack_kwargs)
 
                 if self.args.save_images:
                     deblur_adv = utils_deblur.postprocess(deblur_adv[-1], rgb_range=self.args.rgb_range)
@@ -146,7 +146,7 @@ class Trainer_adv:
                     self.ckp.save_images(filename, save_list)
         else:
             tqdm_test = tqdm(self.loader_test, desc=f"Test Progress", position=0, ncols=80)
-            for idx_img, (blur, sharp, kernel, filename) in enumerate(tqdm_test):
+            for idx_img, (blur, sharp, kernel, target, filename) in enumerate(tqdm_test):
                 blur = torch.squeeze(blur, 0)
                 kernel = torch.squeeze(kernel, 0)
                 blur = blur.to(self.device)

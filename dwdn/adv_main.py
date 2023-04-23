@@ -8,13 +8,16 @@ from logger import logger
 from attacker import AttackerModel
 import warnings
 warnings.filterwarnings('ignore')
-
+import torchvision.transforms as T
+import matplotlib.pyplot as plt
 
 torch.manual_seed(args.seed)
 chkp = logger.Logger(args)
 
 print("Deep Wiener Deconvolution Network")
 loader = data.Data(args)
+
+
 model = model.Model(args, chkp)
 model = AttackerModel(model)
 loss = loss.Loss(args, chkp) if not args.test_only else None

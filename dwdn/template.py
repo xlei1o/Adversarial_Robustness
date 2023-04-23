@@ -30,5 +30,6 @@ def set_template(args):
             args.cpu = True
             args.n_threads = 0
 
-            args.targeted = True
-            args.eps = 0.2
+            args.targeted = False
+            args.eps = 12
+            args.adv_iterations = 10

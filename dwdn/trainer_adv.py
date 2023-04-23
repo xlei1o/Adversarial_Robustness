@@ -58,13 +58,13 @@ class Trainer_adv:
         return lrs.StepLR(self.optimizer, **kwargs)
 
     def set_adv(self):
-        eps = self.args.eps * math.sqrt(self.args.n_colors)
+        # eps = self.args.eps * math.sqrt(self.args.n_colors)
         attack_kwargs = {
             'constraint': self.args.constraint,
-            'eps': eps,
-            'step_size': 2.5 * (eps / self.args.adv_iterations),
+            'eps': self.args.eps,
+            'step_size': 2.5 * (self.args.eps / self.args.adv_iterations),
             'iterations': self.args.adv_iterations,
-            'random_start': True,
+            'random_start': False,
             'random_restarts': 0,
             'use_best': False,
             'random_mode': "uniform_in_sphere"

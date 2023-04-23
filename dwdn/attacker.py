@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import torchvision.transforms as T
 import utils_deblur
 from tqdm import trange
+import matplotlib.pyplot as plt
 
 
 class AttackerStep:
@@ -49,7 +50,7 @@ class L2Step(AttackerStep):
         l = len(x.shape) - 1
         g_norm = torch.norm(g.view(g.shape[0], -1), dim=1).view(-1, *([1] * l))
         scaled_g = g / (g_norm + 1e-10)
-        return x + scaled_g * self.step_size
+        return x - scaled_g * self.step_size
 
     def random_perturb(self, x, mode="uniform_in_sphere"):
         if mode == "uniform_in_sphere":
@@ -73,10 +74,12 @@ class LinfStep(AttackerStep):
     def project(self, x):
         diff = x - self.orig_input
         diff = torch.clamp(diff, -self.eps, self.eps)
+        # print(diff)
         return self.orig_input + diff
 
     def step(self, x, g):
         l = len(x.shape) - 1
+        # print(g)
         g_norm = torch.norm(g.view(g.shape[0], -1), dim=1).view(-1, *([1] * l))
         scaled_g = g / (g_norm + 1e-10)
         return x - scaled_g * self.step_size
@@ -97,7 +100,7 @@ class AttackerModel(torch.nn.Module):
         self.model = model
 
     def forward(self, x, kernel, target=None, make_adv=False, constraint="inf", eps=0.3, step_size=0.1, iterations=2,
-                random_start=True, random_restarts=0, random_mode="uniform_in_sphere", use_best=False,
+                random_start=False, random_restarts=0, random_mode="uniform_in_sphere", use_best=False,
                 restart_use_best=True, do_tqdm=True):
 
         if make_adv:
@@ -121,10 +124,13 @@ class AttackerModel(torch.nn.Module):
             step = step_class(eps=eps, orig_input=orig_input, step_size=step_size)
 
             def calc_loss(input):
-                adv_deblur = self.model(input, kernel)
-                adv_deblur = utils_deblur.postprocess(adv_deblur[-1], rgb_range=1)[0]
+                adv_deblur = self.model(input, kernel)[1]
+                # print((adv_deblur))
+                # print((target))
+                # adv_deblur = utils_deblur.postprocess(adv_deblur[-1], rgb_range=1)[0]
 
                 if targeted:
+
                     return criterion(adv_deblur, target)
                 else:
                     return -criterion(adv_deblur, target)
@@ -142,7 +148,8 @@ class AttackerModel(torch.nn.Module):
                     best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
 
                 # PGD iterates
-                for _ in trange(iterations, desc=f"Adversarial Iteration for Current Image", position=1, ncols=120, leave=False):
+                for _ in trange(iterations, desc=f"Adversarial Iteration for Current Image", position=1, ncols=120,
+                                leave=False):
                     x = x.clone().detach().requires_grad_(True)
 
                     losses = calc_loss(x)
@@ -150,14 +157,14 @@ class AttackerModel(torch.nn.Module):
                         'Shape of losses must match input!'
 
                     loss = torch.mean(losses)
-                    grad, = torch.autograd.grad(loss, [x])
-                with torch.no_grad():
-                    # best_buffer.update_best(losses.clone().detach(), x.clone().detach())
-                    best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
+                    print(loss)
+                    grad, = torch.autograd.grad(loss, x)
+                    with torch.no_grad():
+                        # best_buffer.update_best(losses.clone().detach(), x.clone().detach())
+                        best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
 
-                    x = step.step(x, grad)
-                    x = step.project(x)
-
+                        x = step.step(x, grad)
+                        x = step.project(x)
 
                 losses = calc_loss(x)
                 best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
@@ -169,19 +176,19 @@ class AttackerModel(torch.nn.Module):
             x_init = x.clone().detach()
             loss_init = calc_loss(x)
 
-            if random_restarts:
-                best_x = x_init
-                best_loss = loss_init
-
-                for _ in range(random_restarts):
-                    old_loss = best_loss.clone()
-                    new_x, new_loss = get_adv_examples(x_init, loss_init)
-                    best_x, best_loss = step.get_best(best_x, best_loss, new_x, new_loss) if restart_use_best else (
-                        new_x, new_loss)
-
-                adv_ret = best_x
-            else:
-                adv_ret, _ = get_adv_examples(x_init, loss_init)
+            # if random_restarts:
+            #     best_x = x_init
+            #     best_loss = loss_init
+            #
+            #     for _ in range(random_restarts):
+            #         old_loss = best_loss.clone()
+            #         new_x, new_loss = get_adv_examples(x_init, loss_init)
+            #         best_x, best_loss = step.get_best(best_x, best_loss, new_x, new_loss) if restart_use_best else (
+            #             new_x, new_loss)
+            #
+            #     adv_ret = best_x
+            # else:
+            adv_ret, _ = get_adv_examples(x_init, loss_init)
 
             ###### (adv. training end)
             if (prev_training):

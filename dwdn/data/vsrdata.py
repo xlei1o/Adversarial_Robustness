@@ -42,7 +42,8 @@ class VSRData(data.Dataset):
         image_names_gt = sorted(glob.glob(os.path.join(self.dir_image_gt, "*")))
         image_names_kernel = sorted(glob.glob(os.path.join(self.dir_image_kernel, "*")))
         image_names_target = sorted(glob.glob(os.path.join(self.dir_image_target, "*")))
-
+        # print(image_names_blur)
+        # print(image_names_target)
         names_sharp, names_blur, names_kernel, names_target = [], [], [], []
         for image_name in range(len(image_names_blur)):
             image_sharp = [image_names_gt[image_name]]
@@ -53,9 +54,11 @@ class VSRData(data.Dataset):
             names_sharp.append(image_sharp)
             names_blur.append(image_blur)
             names_kernel.append(image_kernel)
-            image_target.append(image_target)
+            names_target.append(image_target)
             self.n_image.append(len(image_sharp))
 
+        # print(len(image_blur))
+        # print(len(image_target))
         return names_sharp, names_blur, names_kernel, names_target
 
     def _load(self, n_images):

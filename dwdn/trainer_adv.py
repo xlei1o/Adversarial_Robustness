@@ -132,6 +132,7 @@ class Trainer_adv:
                 blur = torch.squeeze(blur, 0)
                 target = torch.squeeze(target, 0)
                 kernel = torch.squeeze(kernel, 0)
+
                 blur = blur.to(self.device)
                 target = target.to(self.device)
 
@@ -151,7 +152,7 @@ class Trainer_adv:
                 kernel = torch.squeeze(kernel, 0)
                 blur = blur.to(self.device)
 
-                deblur, deblur_adv = self.model(blur, kernel, target=None, make_adv=True, **attack_kwargs)
+                deblur, deblur_adv = self.model(blur, kernel, make_adv=True, **attack_kwargs)
 
                 if self.args.save_images:
                     deblur_adv = utils_deblur.postprocess(deblur_adv[-1], rgb_range=self.args.rgb_range)

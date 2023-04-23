@@ -27,5 +27,10 @@ class Benchmark(vsrdata.VSRData):
                 self.dir_image_blur = os.path.join(self.apath, "blurredImage")
                 self.dir_image_gt = os.path.join(self.apath, "blurredImage")
                 self.dir_image_kernel = os.path.join(self.apath, "kernelImage")
-                self.dir_image_target = os.path.join(self.apath, "targetedImage") if self.args.targeted else os.path.join(self.apath, "blurredImage")
                 print("Test image path :", self.dir_image_blur)
+
+                if self.args.targeted:
+                    self.dir_image_target = os.path.join(self.apath, "targetedImage") 
+                    print("Attack image path :", self.dir_image_target)
+                else:
+                    self.dir_image_target = os.path.join(self.apath, "blurredImage")

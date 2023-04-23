@@ -79,7 +79,7 @@ class LinfStep(AttackerStep):
         l = len(x.shape) - 1
         g_norm = torch.norm(g.view(g.shape[0], -1), dim=1).view(-1, *([1] * l))
         scaled_g = g / (g_norm + 1e-10)
-        return x + scaled_g * self.step_size
+        return x - scaled_g * self.step_size
 
     def random_perturb(self, x, mode):
         return x + 2 * (torch.rand_like(x) - 0.5) * self.eps
@@ -109,24 +109,23 @@ class AttackerModel(torch.nn.Module):
             criterion = torch.nn.MSELoss(reduction='none')
 
             targeted = target is not None
+            # print(target.size())
             if not targeted:
                 target = self.model(orig_input, kernel)
                 target = utils_deblur.postprocess(target[-1], rgb_range=1)[0]
-
-            # print(target[0].size())
-            # print(target[1].size())
+            else:
+                _, _, h, w = orig_input.shape
+                target = T.Resize(size=(h, w))(target)
+            # print(target.size())
             step_class = STEPS[constraint] if isinstance(constraint, str) else constraint
             step = step_class(eps=eps, orig_input=orig_input, step_size=step_size)
 
-            def calc_loss(input, tar):
+            def calc_loss(input):
                 adv_deblur = self.model(input, kernel)
                 adv_deblur = utils_deblur.postprocess(adv_deblur[-1], rgb_range=1)[0]
 
                 if targeted:
-                    _, _, h, w = adv_deblur.shape
-                    tar = T.Resize(size=(h, w))(tar)
-                    # assert
-                    return criterion(adv_deblur, tar)
+                    return criterion(adv_deblur, target)
                 else:
                     return -criterion(adv_deblur, target)
 
@@ -139,14 +138,14 @@ class AttackerModel(torch.nn.Module):
                 # Random start (to escape certain types of gradient masking)
                 if random_start:
                     x = step.random_perturb(x, random_mode)
-                    losses = calc_loss(x, target)
+                    losses = calc_loss(x)
                     best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
 
                 # PGD iterates
                 for _ in trange(iterations, desc=f"Adversarial Iteration for Current Image", position=1, ncols=120, leave=False):
                     x = x.clone().detach().requires_grad_(True)
 
-                    losses = calc_loss(x, target)
+                    losses = calc_loss(x)
                     assert losses.shape[0] == x.shape[0], \
                         'Shape of losses must match input!'
 
@@ -160,7 +159,7 @@ class AttackerModel(torch.nn.Module):
                     x = step.project(x)
 
 
-                losses = calc_loss(x, target)
+                losses = calc_loss(x)
                 best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
                 # if torch.any(losses != best_loss):
                 #     print(f"Loss improved from {losses.sum()} to {best_loss.sum()}")
@@ -168,7 +167,7 @@ class AttackerModel(torch.nn.Module):
                 return best_x.clone().detach(), best_loss.clone().detach()
 
             x_init = x.clone().detach()
-            loss_init = calc_loss(x, target)
+            loss_init = calc_loss(x)
 
             if random_restarts:
                 best_x = x_init

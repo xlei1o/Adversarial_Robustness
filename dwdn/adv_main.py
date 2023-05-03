@@ -11,15 +11,16 @@ from attacker import AttackerModel
 import warnings
 warnings.filterwarnings('ignore')
 
-
+# _ = TrainingData(args)  
 
 torch.manual_seed(args.seed)
 chkp = logger.Logger(args)
 
+
 print("Deep Wiener Deconvolution Network")
 if args.training_data_generation:
     _ = TrainingData(args)  
-    
+
 gc.collect()
 torch.cuda.empty_cache()
 

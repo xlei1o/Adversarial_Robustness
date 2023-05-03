@@ -198,4 +198,4 @@ class AttackerModel(torch.nn.Module):
         else:
             inp = x
 
-        return self.model(orig_input, kernel), self.model(inp, kernel)
+        return self.model(x, kernel), self.model(inp, kernel)

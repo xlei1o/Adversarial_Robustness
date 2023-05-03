@@ -9,8 +9,8 @@ import os
 class TrainingData:
     def __init__(self, args):
         self.args = args
-        train_size = 20000
-        vaild_size = 2000
+        train_size = 2
+        vaild_size = 2
         # generate training dataset
         dataset_train_base = torchvision.datasets.CelebA(root='.', download=True, split='train',
                                                          transform=T.ToTensor())
@@ -38,10 +38,13 @@ class TrainingData:
         
         
         apath = os.path.join(self.args.dir_data)
-        train_dir_blur = os.path.join(apath, "InputBlurredImage")
-        train_dir_sharp = os.path.join(apath, "InputTargetImage")
-        train_dir_kernel = os.path.join(apath, "psfMotionKernel")            
-
+        train_dir_blur = os.path.join(apath, "InputBlurredImage/")
+        train_dir_sharp = os.path.join(apath, "InputTargetImage/")
+        train_dir_kernel = os.path.join(apath, "psfMotionKernel/")      
+        if not os.path.exists(os.path.dirname(train_dir_blur)):
+                    os.makedirs(train_dir_blur)
+                    os.makedirs(train_dir_sharp)
+                    os.makedirs(train_dir_kernel)
 
         tqdm_train = tqdm(dataset_train_loader, desc=f"Generating Training Data", position=0, ncols=80)
         for index, (sharp, blur, kernel) in enumerate(tqdm_train):
@@ -50,23 +53,18 @@ class TrainingData:
             kernel_name = os.path.join(train_dir_kernel, "{}.mat".format(str(index)))
             sharp_name = os.path.join(train_dir_sharp, "{}.png".format(str(index)))
 
-            # if not os.path.exists(os.path.dirname(train_dir_blur)):
-            #         os.makedirs(os.path.dirname(train_dir_blur))
-            #         os.makedirs(os.path.dirname(train_dir_sharp))
-            #         os.makedirs(os.path.dirname(train_dir_kernel))
-
             common.save_img(sharp, sharp_name)
             common.save_img(blur, blur_name)
             common.save_kernel(kernel, kernel_name)
 
 
-        vaild_dir_blur = os.path.join(apath, "blurredImage")
-        vaild_dir_sharp = os.path.join(apath, "GTImage")
-        vaild_dir_kernel = os.path.join(apath, "kernelImage")
-        # if not os.path.exists(os.path.dirname(vaild_dir_blur)):
-        #         os.makedirs(os.path.dirname(vaild_dir_sharp))
-        #         os.makedirs(os.path.dirname(vaild_dir_kernel))
-        #         os.makedirs(os.path.dirname(vaild_dir_blur))
+        vaild_dir_blur = os.path.join(apath, "blurredImage/")
+        vaild_dir_sharp = os.path.join(apath, "GTImage/")
+        vaild_dir_kernel = os.path.join(apath, "kernelImage/")
+        if not os.path.exists(os.path.dirname(vaild_dir_blur)):
+                os.makedirs(os.path.dirname(vaild_dir_kernel))
+                os.makedirs(os.path.dirname(vaild_dir_sharp))
+                os.makedirs(os.path.dirname(vaild_dir_blur))
         tqdm_vaild = tqdm(dataset_vaild_loader, desc=f"Generating Validation Data", position=0, ncols=80)
         for index, (sharp, blur, kernel) in enumerate(tqdm_vaild):
             blur_name = os.path.join(vaild_dir_blur, "{}.png".format(str(index)))

@@ -8,7 +8,7 @@ import imageio
 import random
 import torch
 import torch.utils.data as data
-
+import scipy.io as sio
 
 class VSRData(data.Dataset):
     def __init__(self, args, name='', train=True):
@@ -176,7 +176,8 @@ class VSRData(data.Dataset):
                          file in f_sharps]
             sharps = np.array([imageio.imread(sharp_name) for sharp_name in f_sharps])
             blurs = np.array([imageio.imread(blur_name) for blur_name in f_blurs])
-            kernels = np.array([imageio.imread(kernel_name) for kernel_name in f_kernels])
+            # kernels = np.array([imageio.imread(kernel_name) for kernel_name in f_kernels])
+            kernels = np.array([sio.loadmat(kernel_name)["kernel"] for kernel_name in f_kernels])
             targets = np.array([imageio.imread(target_name) for target_name in f_targets])
         return blurs, sharps, kernels, targets, filenames
 

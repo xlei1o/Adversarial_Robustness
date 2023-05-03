@@ -12,6 +12,8 @@ def GaussianKernel(kernel_size, sigma):
     return kernel.clone().detach()
 
 def save_kernel(kernel, filename):
+    kernel = kernel.squeeze(0).squeeze(0).squeeze(0)
+    # print(kernel.size())
     kernel = kernel.data.mul(255)
     mdic = {'kernel': kernel.cpu().numpy()}
     savemat(filename, mdic)

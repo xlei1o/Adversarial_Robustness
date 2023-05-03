@@ -93,13 +93,14 @@ parser.add_argument('--print_every', type=int, default=200,
                     help='how many batches to wait before logging training status')
 parser.add_argument('--save_images', default=True, action='store_true',
                     help='save images')
-
 # Attack specifications
 parser.add_argument('--targeted', default=False,
                     help='If ture, run targeted attack.')
 parser.add_argument('--eps', type=float, default=5)
 parser.add_argument('--adv_iterations', type=int, default=5)
 parser.add_argument('--constraint', type=str, default='inf')
+
+parser.add_argument('--training_data_generation', action='store_true')
 
 
 args = parser.parse_args()

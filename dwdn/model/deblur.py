@@ -16,7 +16,7 @@ class DEBLUR(nn.Module):
         n_feats = 32
         kernel_size = 5
         self.n_colors = args.n_colors
-        self.args = args
+
         FeatureBlock = [Conv(self.n_colors, n_feats1, kernel_size, padding=2, act=True),
                         ResBlock(Conv, n_feats1, kernel_size, padding=2),
                         ResBlock(Conv, n_feats1, kernel_size, padding=2),
@@ -86,24 +86,27 @@ class DEBLUR(nn.Module):
             wi = int(round(w * scale))
             if level == 0:
                 input_clear = F.interpolate(clear_features, (hi, wi), mode='bilinear')
-                inp_all = input_clear
+                inp_all = input_clear.cuda()
                 first_scale_inblock = self.inBlock1(inp_all)
             else:
                 input_clear = F.interpolate(clear_features, (hi, wi), mode='bilinear')
                 input_pred = F.interpolate(input_pre, (hi, wi), mode='bilinear')
-                inp_all = torch.cat((input_clear, input_pred), 1)
+                inp_all = torch.cat((input_clear.cuda(), input_pred), 1)
                 first_scale_inblock = self.inBlock2(inp_all)
 
             first_scale_encoder_first = self.encoder_first(first_scale_inblock)
             first_scale_encoder_second = self.encoder_second(first_scale_encoder_first)
             first_scale_decoder_second = self.decoder_second(first_scale_encoder_second)
+            print(first_scale_decoder_second.size())
+            print(first_scale_inblock.size())
             first_scale_decoder_first = self.decoder_first(first_scale_decoder_second+first_scale_encoder_first)
             input_pre = self.outBlock(first_scale_decoder_first+first_scale_inblock)
             out = self.outBlock2(input_pre)
             output.append(out)
 
-        # output = utils_deblur.postprocess(output[-1], rgb_range=self.args.rgb_range)
         return output
+
+
 
 
 

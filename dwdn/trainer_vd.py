@@ -7,16 +7,6 @@ from tqdm import tqdm
 
 import utils_deblur
 import torch.nn.functional as F
-import torch.nn as nn
-
-
-att_kwargs = {'constraint': 'inf',
-              'eps': 0.5,
-              'step_size': 0.1,
-              'iterations': 1,
-              # 'do_tqdm': True
-              }
-
 
 class Trainer_VD:
     def __init__(self, args, loader, my_model, my_loss, ckp):
@@ -64,7 +54,7 @@ class Trainer_VD:
 
     def train(self):
         print("Image Deblur Training")
-        # self.scheduler.step()
+        #self.scheduler.step()
         self.loss.step()
         epoch = self.scheduler.last_epoch + 1
         lr = self.scheduler.get_lr()[0]
@@ -120,99 +110,17 @@ class Trainer_VD:
             for idx_img, (blur, sharp, kernel, filename) in enumerate(tqdm_test):
 
                 blur = torch.squeeze(blur, 0)
-                # targeted = torch.squeeze(targeted, 0)
                 kernel = torch.squeeze(kernel, 0)
                 blur = blur.to(self.device)
-                # targeted = targeted.to(self.device)
 
-                # sigma = self.startGaussian(blur)
                 deblur = self.model(blur, kernel)
-                # print(type(deblur))
-                # print(type(deblur[0]))
-                # print(sigma.size())
-                # print(blur.size())
-                # a = sigma+blur
-                # print(a.size())
-                # self.model = AttackerModel(self.model)
-                # deblur = self.model(blur, kernel, target=None, make_adv=True)
+
                 if self.args.save_images:
                     deblur = utils_deblur.postprocess(deblur[-1], rgb_range=self.args.rgb_range)
                     save_list = [deblur[0]]
                     self.ckp.save_images(filename, save_list)
 
             self.ckp.end_log(len(self.loader_test), train=False)
-
-    # def startGaussian(self, tensor, mean=0, std=0.1):
-    #     return torch.randn(tensor.size(), device='cpu') * std + mean
-    #
-    # def projected_gradient_descent(self, blur, kernel, sigma, target=None, make_adv=False, constraint='inf', eps=0.5,
-    #                                step_size=0.1,
-    #                                iterations=10):
-    #     # self.model = model
-    #     # self.sigma = sigma
-    #     loss_fn = nn.MSELoss()
-    #     # self.input = input
-    #     # clamp = (0, 1)
-    #     orig_output = self.model(blur, kernel)
-    #     sigma_adv = sigma.clone().detach().requires_grad_(True).to('cpu')
-    #
-    #     if make_adv:
-    #         """Performs the projected gradient descent attack on a images."""
-    #
-    #         targeted = target is not None
-    #         num_channels = self.args.n_colors
-    #         for i, _ in enumerate(orig_output):
-    #             for _ in range(iterations):
-    #                 _sigma_adv = sigma_adv.clone().detach().requires_grad_(True)
-    #                 adv_input = blur + _sigma_adv
-    #                 prediction = self.model(adv_input, kernel)[i]
-    #                 loss = loss_fn(prediction, target[i] if targeted else orig_output[i])
-    #                 loss.requires_grad = True
-    #                 loss.backward()
-    #
-    #                 with torch.no_grad():
-    #                     # Force the gradient step to be a fixed size in a certain norm
-    #                     if constraint == 'inf':
-    #                         gradients = _sigma_adv.grad.sign() * step_size
-    #                     else:
-    #                         # Note .view() assumes batched image data as 4D tensor
-    #                         gradients = _sigma_adv.grad * step_size / _sigma_adv.grad.view(_sigma_adv.shape[0], -1).norm(
-    #                             constraint, dim=-1).view(-1, num_channels, 1, 1)
-    #
-    #                     if targeted:
-    #                         # Targeted: Gradient descent with on the loss of the (incorrect) target label
-    #                         # w.r.t. the image data
-    #                         sigma_adv -= gradients
-    #                     else:
-    #                         # Untargeted: Gradient ascent on the loss of the correct label w.r.t.
-    #                         # the model parameters
-    #                         sigma_adv += gradients
-    #
-    #                 # Project back into l_norm ball and correct range
-    #                 if constraint == 'inf':
-    #                     # Workaround as PyTorch doesn't have elementwise clip
-    #                     sigma_adv = torch.max(torch.min(sigma_adv, sigma + eps), sigma - eps)
-    #                 else:
-    #                     delta = sigma_adv - sigma
-    #
-    #                     # Assume x and x_adv are batched tensors where the first dimension is
-    #                     # a batch dimension
-    #                     mask = delta.view(delta.shape[0], -1).norm(constraint, dim=1) <= eps
-    #
-    #                     scaling_factor = delta.view(delta.shape[0], -1).norm(constraint, dim=1)
-    #                     scaling_factor[mask] = eps
-    #
-    #                     # .view() assumes batched images as a 4D Tensor
-    #                     delta *= eps / scaling_factor.view(-1, 1, 1, 1)
-    #
-    #                     sigma_adv = sigma + delta
-    #
-    #             # sigma_adv = sigma_adv.clamp(*clamp)
-    #             # sigma_adv.detach()
-    #         return self.model(blur+sigma_adv, kernel)
-    #
-    #     else:
-    #         return orig_output
 
     def terminate(self):
         if self.args.test_only:

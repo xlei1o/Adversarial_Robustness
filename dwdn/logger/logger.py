@@ -66,6 +66,7 @@ class Logger:
             img = np.transpose(img.cpu().numpy(), (1, 2, 0)).astype('uint8')
             imageio.imwrite('{}{}.png'.format(filename, post), img)
 
+
     def start_log(self, train=True):
         if train:
             self.loss_log = torch.cat((self.loss_log, torch.zeros(1)))

@@ -113,5 +113,3 @@ class Model(nn.Module):
                 neigh1[: , : , _h-shave:_h+patch_size-shave , _w-shave:_w+patch_size-shave] = neigh[1][: , : , shave:-shave , shave:-shave]
 
         return deblur , [neigh0 , neigh1]
-
-

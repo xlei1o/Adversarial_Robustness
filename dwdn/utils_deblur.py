@@ -12,7 +12,7 @@ def get_uperleft_denominator(img, kernel):
     ker_f = convert_psf2otf(kernel, img.size()) # discrete fourier transform of kernel
     nsr = wiener_filter_para(img)
     denominator = inv_fft_kernel_est(ker_f, nsr )#
-    img1 = img
+    img1 = img.cuda()
     numerator = torch.rfft(img1, 3, onesided=False)
     deblur = deconv(denominator, numerator)
     return deblur
@@ -46,8 +46,7 @@ def inv_fft_kernel_est(ker_f, NSR):
 # --------------------------------
 def deconv(inv_ker_f, fft_input_blur):
     # delement-wise multiplication.
-    deblur_f = torch.zeros_like(inv_ker_f)
-
+    deblur_f = torch.zeros_like(inv_ker_f).cuda()
     deblur_f[:, :, :, :, 0] = inv_ker_f[:, :, :, :, 0] * fft_input_blur[:, :, :, :, 0] \
                             - inv_ker_f[:, :, :, :, 1] * fft_input_blur[:, :, :, :, 1]
     deblur_f[:, :, :, :, 1] = inv_ker_f[:, :, :, :, 0] * fft_input_blur[:, :, :, :, 1] \
@@ -58,7 +57,7 @@ def deconv(inv_ker_f, fft_input_blur):
 # --------------------------------
 # --------------------------------
 def convert_psf2otf(ker, size):
-    psf = torch.zeros(size)
+    psf = torch.zeros(size).cuda()
     # circularly shift
     centre = ker.shape[2]//2 + 1
     psf[:, :, :centre, :centre] = ker[:, :, (centre-1):, (centre-1):]

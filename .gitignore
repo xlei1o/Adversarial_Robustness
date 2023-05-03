@@ -28,6 +28,14 @@ share/python-wheels/
 MANIFEST
 
 denoising/data/celeba
+dwdn/TrainingData/blurredImage
+dwdn/TrainingData/GTImage
+dwdn/TrainingData/kernelImage
+dwdn/TrainingData/InputBlurredImage
+dwdn/TrainingData/InputTargetImage
+dwdn/TrainingData/psfMotionKernel
+dwdn/celeba
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.

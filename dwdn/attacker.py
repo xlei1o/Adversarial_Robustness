@@ -4,7 +4,7 @@ import torchvision.transforms as T
 import utils_deblur
 from tqdm import trange
 import matplotlib.pyplot as plt
-
+import gc
 
 class AttackerStep:
     def __init__(self, orig_input, eps, step_size, use_grad=True):
@@ -101,7 +101,7 @@ class AttackerModel(torch.nn.Module):
 
     def forward(self, x, kernel, target=None, make_adv=False, constraint="inf", eps=0.3, step_size=0.1, iterations=2,
                 random_start=False, random_restarts=0, random_mode="uniform_in_sphere", use_best=False,
-                restart_use_best=True, do_tqdm=True):
+                restart_use_best=True):
 
         if make_adv:
             prev_training = bool(self.training)
@@ -110,12 +110,12 @@ class AttackerModel(torch.nn.Module):
             ###### (adv. training begin)
             orig_input = x.clone()
             criterion = torch.nn.MSELoss(reduction='none')
-
+            # print(torch.max(orig_input))
             targeted = target is not None
             # print(target.size())
             if not targeted:
-                target = self.model(orig_input, kernel)
-                target = utils_deblur.postprocess(target[-1], rgb_range=1)[0]
+                target = self.model(orig_input, kernel)[1]
+                # target = utils_deblur.postprocess(target[-1], rgb_range=1)[0]
             else:
                 _, _, h, w = orig_input.shape
                 target = T.Resize(size=(h, w))(target)
@@ -157,7 +157,7 @@ class AttackerModel(torch.nn.Module):
                         'Shape of losses must match input!'
 
                     loss = torch.mean(losses)
-                    print(loss)
+                    # print(loss)
                     grad, = torch.autograd.grad(loss, x)
                     with torch.no_grad():
                         # best_buffer.update_best(losses.clone().detach(), x.clone().detach())
@@ -165,6 +165,8 @@ class AttackerModel(torch.nn.Module):
 
                         x = step.step(x, grad)
                         x = step.project(x)
+                    gc.collect()
+                    torch.cuda.empty_cache()
 
                 losses = calc_loss(x)
                 best_x, best_loss = step.get_best(best_x, best_loss, x, losses) if use_best else (x, losses)
@@ -176,19 +178,18 @@ class AttackerModel(torch.nn.Module):
             x_init = x.clone().detach()
             loss_init = calc_loss(x)
 
-            # if random_restarts:
-            #     best_x = x_init
-            #     best_loss = loss_init
-            #
-            #     for _ in range(random_restarts):
-            #         old_loss = best_loss.clone()
-            #         new_x, new_loss = get_adv_examples(x_init, loss_init)
-            #         best_x, best_loss = step.get_best(best_x, best_loss, new_x, new_loss) if restart_use_best else (
-            #             new_x, new_loss)
-            #
-            #     adv_ret = best_x
-            # else:
-            adv_ret, _ = get_adv_examples(x_init, loss_init)
+            if random_restarts:
+                best_x = x_init
+                best_loss = loss_init
+            
+                for _ in range(random_restarts):
+                    new_x, new_loss = get_adv_examples(x_init, loss_init)
+                    best_x, best_loss = step.get_best(best_x, best_loss, new_x, new_loss) if restart_use_best else (
+                        new_x, new_loss)
+            
+                adv_ret = best_x
+            else:
+                adv_ret, _ = get_adv_examples(x_init, loss_init)
 
             ###### (adv. training end)
             if (prev_training):

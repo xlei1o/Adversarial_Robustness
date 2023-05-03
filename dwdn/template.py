@@ -9,7 +9,7 @@ def set_template(args):
 
         if args.task == "Deblurring":
             args.data_train = 'BLUR_IMAGE'
-            args.dir_data = '../TrainingData'
+            args.dir_data = './TrainingData'
             args.data_test = 'BLUR_IMAGE'
             args.dir_data_test = './TestData'
             args.reset = False
@@ -27,9 +27,9 @@ def set_template(args):
             args.save_results = True
             args.save_models = True
             args.no_augment = True
-            args.cpu = True
-            args.n_threads = 0
 
             args.targeted = False
-            args.eps = 12
-            args.adv_iterations = 10
+            args.eps = 6
+            args.adv_iterations = 1
+            args.constraint = '2'
+            args.training_data_generation = False

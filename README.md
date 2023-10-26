@@ -1,4 +1,4 @@
-# Forschungspraxis: Adversarial Robustness of Deblurring Methods
+# Adversarial Robustness of Deblurring Methods
 
 Networks: RGDN and DWDN
 
